@@ -114,7 +114,16 @@
       context: "Co-organiser briefing",
       footerAria: "Klinik Inocare contact details",
       logoAlt: "Klinik Inocare — Wound Care & Wellness Centre",
-      presenterTools: "Presentation drawing tools",
+      presenterMenuTitle: "Presentation menu",
+      menuOpen: "Open presentation menu",
+      menuClose: "Close presentation menu",
+      presentationSection: "Presentation",
+      languageSection: "Language",
+      drawingSection: "Drawing tools",
+      enterFullscreen: "Enter fullscreen",
+      exitFullscreen: "Exit fullscreen",
+      fullscreenUnavailable: "Fullscreen is not available in this browser.",
+      fullscreenFailed: "Fullscreen could not be started. Try again after tapping the page.",
       annotateTool: "Annotate slide (C)",
       chalkboardTool: "Open chalkboard (B)",
       downloadTool: "Download drawings (D)"
@@ -224,7 +233,16 @@
       context: "Taklimat penganjur bersama",
       footerAria: "Maklumat hubungan Klinik Inocare",
       logoAlt: "Klinik Inocare — Pusat Penjagaan Luka & Kesejahteraan",
-      presenterTools: "Alat melukis pembentangan",
+      presenterMenuTitle: "Menu pembentangan",
+      menuOpen: "Buka menu pembentangan",
+      menuClose: "Tutup menu pembentangan",
+      presentationSection: "Pembentangan",
+      languageSection: "Bahasa",
+      drawingSection: "Alat melukis",
+      enterFullscreen: "Masuk skrin penuh",
+      exitFullscreen: "Keluar skrin penuh",
+      fullscreenUnavailable: "Skrin penuh tidak tersedia dalam pelayar ini.",
+      fullscreenFailed: "Skrin penuh tidak dapat dimulakan. Ketik halaman dan cuba lagi.",
       annotateTool: "Catat pada slaid (C)",
       chalkboardTool: "Buka papan kapur (B)",
       downloadTool: "Muat turun lukisan (D)"
@@ -271,29 +289,185 @@
     );
   });
 
-  const presenterTools = document.createElement("div");
-  presenterTools.className = "presenter-tools";
-  presenterTools.setAttribute("role", "toolbar");
-  presenterTools.innerHTML = `
-    <button type="button" data-drawing-tool="annotate"><i class="ph ph-pencil-simple-line" aria-hidden="true"></i><span>C</span></button>
-    <button type="button" data-drawing-tool="chalkboard"><i class="ph ph-chalkboard" aria-hidden="true"></i><span>B</span></button>
-    <button type="button" data-drawing-tool="download"><i class="ph ph-download-simple" aria-hidden="true"></i><span>D</span></button>
-  `;
-  document.body.append(presenterTools);
+  const presenterMenu = document.createElement("div");
+  presenterMenu.className = "presenter-menu";
+  presenterMenu.innerHTML = `
+    <button class="presenter-menu__trigger" type="button" aria-expanded="false" aria-controls="presenter-menu-panel">
+      <i class="ph ph-list" aria-hidden="true"></i>
+    </button>
+    <div class="presenter-menu__panel" id="presenter-menu-panel" role="dialog" aria-labelledby="presenter-menu-title" hidden>
+      <div class="presenter-menu__header">
+        <span class="presenter-menu__header-icon" aria-hidden="true"><i class="ph ph-presentation"></i></span>
+        <div>
+          <strong id="presenter-menu-title"></strong>
+          <span>Klinik Inocare</span>
+        </div>
+      </div>
 
-  presenterTools.addEventListener("click", (event) => {
-    const button = event.target.closest("button[data-drawing-tool]");
-    if (!button) return;
+      <div class="presenter-menu__section">
+        <p class="presenter-menu__section-label" data-menu-copy="presentationSection"></p>
+        <button class="presenter-menu__item" type="button" data-presentation-action="fullscreen">
+          <i class="ph ph-corners-out" aria-hidden="true"></i>
+          <span data-fullscreen-label></span>
+        </button>
+      </div>
+
+      <div class="presenter-menu__section">
+        <p class="presenter-menu__section-label" data-menu-copy="languageSection"></p>
+        <div class="presenter-menu__languages" role="group">
+          <button type="button" data-language="en" aria-pressed="true">English</button>
+          <button type="button" data-language="bm" aria-pressed="false">Bahasa Malaysia</button>
+        </div>
+      </div>
+
+      <div class="presenter-menu__section">
+        <p class="presenter-menu__section-label" data-menu-copy="drawingSection"></p>
+        <button class="presenter-menu__item" type="button" data-drawing-tool="annotate">
+          <i class="ph ph-pencil-simple-line" aria-hidden="true"></i>
+          <span data-tool-label></span>
+          <kbd>C</kbd>
+        </button>
+        <button class="presenter-menu__item" type="button" data-drawing-tool="chalkboard">
+          <i class="ph ph-chalkboard" aria-hidden="true"></i>
+          <span data-tool-label></span>
+          <kbd>B</kbd>
+        </button>
+        <button class="presenter-menu__item" type="button" data-drawing-tool="download">
+          <i class="ph ph-download-simple" aria-hidden="true"></i>
+          <span data-tool-label></span>
+          <kbd>D</kbd>
+        </button>
+      </div>
+
+      <p class="presenter-menu__status" role="status" aria-live="polite" hidden></p>
+    </div>
+  `;
+  document.body.append(presenterMenu);
+
+  const menuTrigger = presenterMenu.querySelector(".presenter-menu__trigger");
+  const menuPanel = presenterMenu.querySelector(".presenter-menu__panel");
+  const menuTitle = presenterMenu.querySelector("#presenter-menu-title");
+  const fullscreenButton = presenterMenu.querySelector('[data-presentation-action="fullscreen"]');
+  const fullscreenLabel = presenterMenu.querySelector("[data-fullscreen-label]");
+  const fullscreenStatus = presenterMenu.querySelector(".presenter-menu__status");
+
+  function isFullscreen() {
+    return Boolean(
+      document.fullscreenElement ||
+      document.webkitFullscreenElement ||
+      document.webkitCurrentFullScreenElement ||
+      document.webkitIsFullScreen
+    );
+  }
+
+  function supportsFullscreen() {
+    const root = document.documentElement;
+    return Boolean(root.requestFullscreen || root.webkitRequestFullscreen || root.webkitRequestFullScreen);
+  }
+
+  function setPresenterMenuOpen(open, restoreFocus = false) {
+    menuPanel.hidden = !open;
+    menuTrigger.setAttribute("aria-expanded", String(open));
+    menuTrigger.querySelector("i").className = `ph ${open ? "ph-x" : "ph-list"}`;
+    const copy = translations[currentLanguage];
+    const label = open ? copy.menuClose : copy.menuOpen;
+    menuTrigger.setAttribute("aria-label", label);
+    menuTrigger.title = label;
+
+    if (open) {
+      menuPanel.querySelector("button:not([disabled])")?.focus({ preventScroll: true });
+    } else if (restoreFocus) {
+      menuTrigger.focus({ preventScroll: true });
+    }
+  }
+
+  function updateFullscreenControl(copy = translations[currentLanguage]) {
+    const active = isFullscreen();
+    const available = supportsFullscreen();
+    const label = active ? copy.exitFullscreen : copy.enterFullscreen;
+    fullscreenLabel.textContent = label;
+    fullscreenButton.title = label;
+    fullscreenButton.setAttribute("aria-label", label);
+    fullscreenButton.querySelector("i").className = `ph ${active ? "ph-corners-in" : "ph-corners-out"}`;
+    fullscreenButton.disabled = !available;
+    fullscreenStatus.textContent = available ? "" : copy.fullscreenUnavailable;
+    fullscreenStatus.hidden = available;
+  }
+
+  async function toggleFullscreen() {
+    const root = document.documentElement;
+    const active = isFullscreen();
+
+    try {
+      if (active) {
+        const exit = document.exitFullscreen || document.webkitExitFullscreen || document.webkitCancelFullScreen;
+        await exit?.call(document);
+      } else if (root.requestFullscreen) {
+        await root.requestFullscreen({ navigationUI: "hide" });
+      } else {
+        const enter = root.webkitRequestFullscreen || root.webkitRequestFullScreen;
+        await enter?.call(root);
+      }
+      fullscreenStatus.hidden = true;
+      setPresenterMenuOpen(false, true);
+    } catch (error) {
+      fullscreenStatus.textContent = translations[currentLanguage].fullscreenFailed;
+      fullscreenStatus.hidden = false;
+    }
+  }
+
+  menuTrigger.addEventListener("click", (event) => {
     event.preventDefault();
     event.stopPropagation();
+    setPresenterMenuOpen(menuTrigger.getAttribute("aria-expanded") !== "true");
+  });
+
+  menuPanel.addEventListener("click", (event) => {
+    event.stopPropagation();
+
+    const fullscreenAction = event.target.closest('[data-presentation-action="fullscreen"]');
+    if (fullscreenAction) {
+      event.preventDefault();
+      toggleFullscreen();
+      return;
+    }
+
+    const languageButton = event.target.closest("button[data-language]");
+    if (languageButton) {
+      event.preventDefault();
+      setLanguage(languageButton.dataset.language, true);
+      setPresenterMenuOpen(false, true);
+      return;
+    }
+
+    const drawingButton = event.target.closest("button[data-drawing-tool]");
+    if (!drawingButton) return;
+    event.preventDefault();
 
     const actions = {
       annotate: "toggleNotesCanvas",
       chalkboard: "toggleChalkboard",
       download: "download"
     };
-    const method = actions[button.dataset.drawingTool];
+    const method = actions[drawingButton.dataset.drawingTool];
+    setPresenterMenuOpen(false, true);
     window.RevealChalkboard?.[method]?.();
+  });
+
+  document.addEventListener("click", (event) => {
+    if (menuPanel.hidden || presenterMenu.contains(event.target)) return;
+    setPresenterMenuOpen(false);
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape" || menuPanel.hidden) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    setPresenterMenuOpen(false, true);
+  }, true);
+
+  ["fullscreenchange", "webkitfullscreenchange"].forEach((eventName) => {
+    document.addEventListener(eventName, () => updateFullscreenControl());
   });
 
   const requestedLanguage = params.get("lang")?.toLowerCase();
@@ -345,17 +519,27 @@
       button.setAttribute("aria-pressed", String(active));
     });
 
-    presenterTools.setAttribute("aria-label", copy.presenterTools);
+    menuTitle.textContent = copy.presenterMenuTitle;
+    presenterMenu.querySelectorAll("[data-menu-copy]").forEach((node) => {
+      node.textContent = copy[node.dataset.menuCopy];
+    });
+    const menuIsOpen = menuTrigger.getAttribute("aria-expanded") === "true";
+    const menuLabel = menuIsOpen ? copy.menuClose : copy.menuOpen;
+    menuTrigger.setAttribute("aria-label", menuLabel);
+    menuTrigger.title = menuLabel;
     const toolLabels = {
       annotate: copy.annotateTool,
       chalkboard: copy.chalkboardTool,
       download: copy.downloadTool
     };
-    presenterTools.querySelectorAll("[data-drawing-tool]").forEach((button) => {
+    presenterMenu.querySelectorAll("[data-drawing-tool]").forEach((button) => {
       const label = toolLabels[button.dataset.drawingTool];
       button.title = label;
       button.setAttribute("aria-label", label);
+      button.querySelector("[data-tool-label]").textContent = label.replace(/ \([CBD]\)$/, "");
     });
+    presenterMenu.querySelector(".presenter-menu__languages").setAttribute("aria-label", copy.languageSection);
+    updateFullscreenControl(copy);
 
     if (updateUrl) {
       const url = new URL(window.location.href);
