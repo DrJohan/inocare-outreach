@@ -124,6 +124,8 @@
       exitFullscreen: "Exit fullscreen",
       fullscreenUnavailable: "Fullscreen is not available in this browser.",
       fullscreenFailed: "Fullscreen could not be started. Try again after tapping the page.",
+      drawingUnavailable: "Drawing tools could not load. Refresh the page and try again.",
+      drawingFailed: "The drawing tool could not be opened. Please try again.",
       annotateTool: "Annotate slide (C)",
       chalkboardTool: "Open chalkboard (B)",
       downloadTool: "Download drawings (D)"
@@ -243,6 +245,8 @@
       exitFullscreen: "Keluar skrin penuh",
       fullscreenUnavailable: "Skrin penuh tidak tersedia dalam pelayar ini.",
       fullscreenFailed: "Skrin penuh tidak dapat dimulakan. Ketik halaman dan cuba lagi.",
+      drawingUnavailable: "Alat melukis tidak dapat dimuatkan. Muat semula halaman dan cuba lagi.",
+      drawingFailed: "Alat melukis tidak dapat dibuka. Sila cuba lagi.",
       annotateTool: "Catat pada slaid (C)",
       chalkboardTool: "Buka papan kapur (B)",
       downloadTool: "Muat turun lukisan (D)"
@@ -416,6 +420,32 @@
     }
   }
 
+  function getDrawingTools() {
+    return window.Reveal?.getPlugin?.("RevealChalkboard") || window.RevealChalkboard || null;
+  }
+
+  function runDrawingTool(method) {
+    const tools = getDrawingTools();
+    const action = tools?.[method] || window[method];
+
+    if (typeof action !== "function") {
+      fullscreenStatus.textContent = translations[currentLanguage].drawingUnavailable;
+      fullscreenStatus.hidden = false;
+      return false;
+    }
+
+    try {
+      action.call(tools || window);
+      fullscreenStatus.hidden = true;
+      return true;
+    } catch (error) {
+      console.error(`Unable to run drawing tool: ${method}`, error);
+      fullscreenStatus.textContent = translations[currentLanguage].drawingFailed;
+      fullscreenStatus.hidden = false;
+      return false;
+    }
+  }
+
   menuTrigger.addEventListener("click", (event) => {
     event.preventDefault();
     event.stopPropagation();
@@ -450,8 +480,9 @@
       download: "download"
     };
     const method = actions[drawingButton.dataset.drawingTool];
-    setPresenterMenuOpen(false, true);
-    window.RevealChalkboard?.[method]?.();
+    if (runDrawingTool(method)) {
+      setPresenterMenuOpen(false, true);
+    }
   });
 
   document.addEventListener("click", (event) => {

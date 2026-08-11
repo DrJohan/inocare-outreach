@@ -16,7 +16,7 @@
 window.RevealChalkboard = window.RevealChalkboard || {
 	id: 'RevealChalkboard',
 	init: function ( deck ) {
-		initChalkboard( deck );
+		initChalkboard.call( this, deck );
 	},
 	configure: function ( config ) {
 		configure( config );
@@ -427,6 +427,7 @@ console.warn( "toggleNotesButton is deprecated, use customcontrols plugin instea
 		container.id = drawingCanvas[ id ].id;
 		container.classList.add( 'overlay' );
 		container.setAttribute( 'data-prevent-swipe', 'true' );
+		container.style.touchAction = 'none';
 		container.oncontextmenu = function () {
 			return false;
 		}
@@ -506,6 +507,7 @@ console.warn( "toggleNotesButton is deprecated, use customcontrols plugin instea
 		canvas.width = drawingCanvas[ id ].width;
 		canvas.height = drawingCanvas[ id ].height;
 		canvas.setAttribute( 'data-chalkboard', id );
+		canvas.style.touchAction = 'none';
 		canvas.style.cursor = pens[ id ][ color[ id ] ].cursor;
 		container.appendChild( canvas );
 		drawingCanvas[ id ].canvas = canvas;
@@ -1481,7 +1483,7 @@ console.warn( "toggleNotesButton is deprecated, use customcontrols plugin instea
 				mouseY = touch.pageY;
 				if ( mouseY < drawingCanvas[ mode ].height && mouseX < drawingCanvas[ mode ].width ) {
 					// move sponge
-					if ( event.type == 'erase' ) {
+					if ( erasing ) {
 						drawingCanvas[ mode ].sponge.style.left = ( mouseX - eraser.radius ) + 'px';
 						drawingCanvas[ mode ].sponge.style.top = ( mouseY - eraser.radius ) + 'px';
 					}
@@ -1524,7 +1526,9 @@ console.warn( "toggleNotesButton is deprecated, use customcontrols plugin instea
 				}
 
 			}
-		}, false );
+		}, passiveSupported ? {
+			passive: false
+		} : false );
 
 
 		canvas.addEventListener( 'touchend', function ( evt ) {
@@ -1534,6 +1538,15 @@ console.warn( "toggleNotesButton is deprecated, use customcontrols plugin instea
 			// hide sponge image
 			drawingCanvas[ mode ].sponge.style.visibility = 'hidden';
 			stopDrawing();
+		}, false );
+
+		canvas.addEventListener( 'touchcancel', function ( evt ) {
+			evt.preventDefault();
+			clearTimeout( touchTimeout );
+			touchTimeout = null;
+			drawingCanvas[ mode ].sponge.style.visibility = 'hidden';
+			stopDrawing();
+			stopErasing();
 		}, false );
 
 		canvas.addEventListener( 'mousedown', function ( evt ) {
