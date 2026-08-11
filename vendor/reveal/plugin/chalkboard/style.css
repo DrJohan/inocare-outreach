@@ -1,3 +1,22 @@
+/*
+ * The chalkboard plugin appends its drawing surfaces directly to `.reveal`.
+ * Keep them out of normal document flow so their z-index can place them above
+ * the slides and receive mouse, pen, and touch input.
+ */
+#notescanvas.overlay,
+#chalkboard.overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+#notescanvas.overlay > canvas,
+#chalkboard.overlay > canvas {
+  display: block;
+}
+
 div.palette, div.boardhandle {
   position: absolute;
 /*
